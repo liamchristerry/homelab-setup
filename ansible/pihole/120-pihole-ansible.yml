@@ -1,0 +1,82 @@
+---
+- name: Setup PiHole on Ubuntu
+  hosts: pihole
+  become: yes
+  vars:
+    pihole_admin_password: "changeme"
+
+  tasks:
+    - name: Create User Liam
+      ansible.builtin.user:
+        name: liam
+        password: '$6$ucwTW4xk040GiZUs$QPoLpSkDeIgQgHGG1h3Gf2xKPiiNOeRkdsWpQUFMVYw2kTrJZYz0DL2BHXyedYi2e3X.zWYNOhc53WxGZ09qj.'
+        groups: sudo
+        shell: /bin/bash
+        state: present
+
+    - name: Create pihole group
+      ansible.builtin.group:
+        name: pihole
+        state: present
+        
+    - name: Create pihole user
+      ansible.builtin.user:
+        name: pihole
+        home: "/home/pihole"
+        shell: "/usr/sbin/nologin"
+        comment: "PiHole"
+        group: pihole
+        password: "*"
+        state: present
+        remove: true
+        force: true
+
+    - name: Create config directory
+      ansible.builtin.file:
+        state: directory
+        path: /etc/pihole
+        owner: pihole
+        group: pihole
+        mode: "775"
+
+    - name: Pre-configure pihole
+      ansible.builtin.copy:
+        src: pihole.toml
+        dest: /etc/pihole/pihole.toml
+        owner: pihole
+        group: pihole
+        mode: "644"
+        force: false
+
+    - name: Check if Pi-hole service exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/pihole-FTL.service
+      register: pihole_service
+
+    - name: Install Pi-hole
+      ansible.builtin.shell: |
+        curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
+      args:
+        creates: /etc/systemd/system/pihole-FTL.service
+      when: not pihole_service.stat.exists
+
+    - name: Configure Pi-hole
+      ansible.builtin.shell: |
+        sudo pihole-FTL --config dns.upstreams '["1.1.1.1","1.0.0.1"]'
+        sudo pihole-FTL --config dns.hosts '["192.168.99.120 pihole.home.lab", "192.168.99.150 nasroms.home.lab"]'
+        sudo pihole-FTL --config dns.listeningMode "ALL"
+        sudo pihole-FTL --config dns.domain "home.lab"
+        sudo pihole-FTL --config webserver.domain "home.lab"
+        sudo pihole-FTL --config webserver.interface.theme "default-dark"
+        sudo pihole-FTL --config webserver.api.prettyJSON "true"
+
+    - name: Update gravity lists
+      ansible.builtin.shell:
+        cmd: pihole -g
+    
+    - name: Set Pi-hole password with interactive expect
+      ansible.builtin.expect:
+        command: "pihole setpassword"
+        responses:
+          "Enter New Password.*": "{{ pihole_admin_password }}"
+          "Confirm Password.*": "{{ pihole_admin_password }}"

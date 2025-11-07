@@ -1,0 +1,30 @@
+# Reverse Proxy Configuration
+# Managed by Ansible - Do not edit manually
+
+# This file is included from /etc/nginx/nginx.conf inside the "http" block,
+# so do not define worker_processes or events here.
+
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_read_timeout 90;
+
+access_log /var/log/nginx/access.log;
+error_log /var/log/nginx/error.log;
+
+{% for svc in nginx_services %}
+##########################################################
+# {{ svc.name | capitalize }} Service
+##########################################################
+server {
+    listen {{ nginx_listen_ip }}:{{ nginx_listen_port }};
+    server_name {{ svc.server_name }};
+
+    location / {
+        proxy_pass {{ svc.backend_url }};
+        proxy_ssl_verify off;
+    }
+}
+{% endfor %}
+

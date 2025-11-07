@@ -1,0 +1,130 @@
+---
+- name: Install Syncthing, prepare data drive, and create user
+  hosts: syncthing
+  become: yes
+  vars:
+    # Syncthing APT repo details
+    syncthing_apt_key: "https://syncthing.net/release-key.gpg"
+    syncthing_keyring: "/etc/apt/keyrings/syncthing-archive-keyring.gpg"
+    syncthing_repo_file: "/etc/apt/sources.list.d/syncthing.list"
+    syncthing_repo_component: "syncthing stable-v2"   # or "candidate" if you want pre-release builds
+
+  tasks:
+    - name: Create User Liam
+      ansible.builtin.user:
+        name: liam
+        password: '$6$ucwTW4xk040GiZUs$QPoLpSkDeIgQgHGG1h3Gf2xKPiiNOeRkdsWpQUFMVYw2kTrJZYz0DL2BHXyedYi2e3X.zWYNOhc53WxGZ09qj.'
+        groups: sudo
+        shell: /bin/bash
+        state: present
+
+    - name: Ensure apt keyring directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download Syncthing release PGP key
+      ansible.builtin.get_url:
+        url: "{{ syncthing_apt_key }}"
+        dest: "{{ syncthing_keyring }}"
+        mode: "0644"
+
+    - name: Add Syncthing APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by={{ syncthing_keyring }}] https://apt.syncthing.net/ {{ syncthing_repo_component }}"
+        filename: "syncthing"
+        state: present
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install Syncthing package
+      ansible.builtin.apt:
+        name: syncthing
+        state: latest
+
+    - name: Partition /dev/sdb (if not already)
+      community.general.parted:
+        device: /dev/sdb
+        number: 1
+        state: present
+        part_type: primary
+
+    - name: Create filesystem on /dev/sdb1
+      filesystem:
+        fstype: xfs
+        dev: /dev/sdb1
+        force: no
+
+    - name: Create mount point
+      file:
+        path: /mnt/sync
+        state: directory
+        owner: nobody
+        group: nogroup
+        mode: '0777'
+
+    - name: Mount /dev/sdb1
+      ansible.posix.mount:
+        path: /mnt/sync
+        src: /dev/sdb1
+        fstype: xfs
+        opts: defaults,discard
+        state: mounted
+
+    - name: Ensure mount is persistent
+      ansible.posix.mount:
+        path: /mnt/sync
+        src: /dev/sdb1
+        fstype: xfs
+        opts: defaults,discard
+        state: present
+        
+    - name: Create Handheld Save Dir
+      file:
+        path: /mnt/sync/handheld
+        state: directory
+        owner: liam # setting it to liam since the service runs as me
+        group: liam
+        mode: '0777'
+        
+    - name: Ensure Syncthing config directory exists
+      file:
+        path: /home/liam/.local/state/syncthing
+        state: directory
+        owner: liam
+        group: liam
+        mode: '0700'
+    
+    - name: Upload cert.pem
+      copy:
+        src: cert.pem
+        dest: "/home/liam/.local/state/syncthing/cert.pem"
+        owner: liam
+        group: liam
+        mode: 0644
+        
+    - name: Upload key.pem
+      copy:
+        src: key.pem
+        dest: "/home/liam/.local/state/syncthing/key.pem"
+        owner: liam
+        group: liam
+        mode: 0600
+
+
+    # --- Syncthing systemd service ---
+    - name: Enable and start Syncthing for user liam
+      ansible.builtin.systemd:
+        name: "syncthing@liam.service"
+        enabled: yes
+        state: started
+
+    - name: Configure Syncthing
+      shell: |
+        syncthing cli --home=/home/liam/.local/state/syncthing/ config gui raw-address set 0.0.0.0:8384
+        syncthing cli --home=/home/liam/.local/state/syncthing/ config folders add --id handheld --label "handhelds" --path /mnt/sync/handheld
+      args:
+        executable: /bin/bash

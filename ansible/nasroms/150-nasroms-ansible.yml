@@ -1,0 +1,59 @@
+---
+- name: Setup NFS server on Ubuntu
+  hosts: nfs_server
+  become: yes
+
+  tasks:
+    - name: Create User Liam
+      user:
+        name: liam
+        password: '$6$ucwTW4xk040GiZUs$QPoLpSkDeIgQgHGG1h3Gf2xKPiiNOeRkdsWpQUFMVYw2kTrJZYz0DL2BHXyedYi2e3X.zWYNOhc53WxGZ09qj.'
+        groups: sudo
+        shell: /bin/bash
+        state: present
+          
+    - name: Install NFS server packages
+      apt:
+        name: nfs-kernel-server
+        state: present
+        update_cache: yes
+
+    - name: Create NFS export directory
+      file:
+        path: /mnt/nfs
+        state: directory
+        owner: nobody
+        group: nogroup
+        mode: '0777'
+
+    - name: Configure exports file
+      lineinfile:
+        path: /etc/exports
+        line: "{{ item }}"
+        create: yes
+        state: present
+      loop:
+        - "/mnt/nfs 192.168.99.0/24(rw,sync,no_subtree_check,no_root_squash)"
+        - "/mnt/nfs 192.168.22.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)"
+
+    - name: Export NFS shares
+      command: exportfs -ra
+
+    - name: Ensure NFS service is enabled and started
+      systemd:
+        name: nfs-kernel-server
+        enabled: yes
+        state: started
+
+    - name: Install parted for disk management
+      apt:
+        name: parted
+        state: present
+        update_cache: yes
+
+
+    - name: Grow XFS filesystem to fill partition
+      command: xfs_growfs /mnt/nfs
+      args:
+        warn: false
+
