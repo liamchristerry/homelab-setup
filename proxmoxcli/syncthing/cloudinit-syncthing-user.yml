@@ -1,0 +1,28 @@
+#cloud-config
+hostname: syncthing
+manage_etc_hosts: true
+fqdn: syncthing.home.lab
+ssh_pwauth: true
+  
+users:
+  - name: ansible
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFBaA+DrpzzvqoaEvLaEbVJJ5R2JW+40UWF7ekPwE6+N
+
+package_upgrade: true
+packages:
+  - qemu-guest-agent
+
+runcmd:
+  - systemctl enable --now qemu-guest-agent
+  - echo "cloud-init base setup complete" >> /home/ansible/cloudinit.log
+
+final_message: |
+  cloud-init has finished
+  version: $version
+  timestamp: $timestamp
+  datasource: $datasource
+  uptime: $uptime
