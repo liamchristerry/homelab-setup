@@ -1,0 +1,52 @@
+---
+# Reusable LXC creation with direct variables
+# Secrets file is not synced with git
+# groups_vars/all.yml could take a few of these vairables and I could use overrides if I want them changed
+
+
+- name: Create LXC container - {{ hostname }}
+  community.general.proxmox:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_password }}" #in secrets file 
+    node: "{{ proxmox_node }}"
+    vmid: "{{ vmid }}"
+    hostname: "{{ hostname }}"
+    ostemplate: "{{ lxc_template }}" #stored in group_vars/all.yml
+    password: "{{ lxc_root_password }}" #in secrets file 
+    cores: "{{ cores }}"
+    memory: "{{ memory  }}"
+    swap: "{{ lxc_swap }}"
+    disk: "{{ lxc_storage }}:{{ lxc_disk }}"
+    netif: '{"net0":"name=eth0,ip={{ ip }}/{{ subnet }},gw={{ gateway }},bridge=vmbr0"}'
+    nameserver: "{{ nameserver }}" # can only add one DNS server, the configure task adds the 2nd
+    onboot: yes
+    unprivileged: yes
+    state: present
+    validate_certs: no
+
+- name: Start container - {{ hostname }}
+  community.general.proxmox:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_password }}" #in secrets file 
+    vmid: "{{ vmid }}"
+    state: started
+    validate_certs: no
+
+- name: Wait for container SSH - {{ hostname }}
+  wait_for:
+    host: "{{ ip }}"
+    port: 22
+    delay: 15
+    timeout: 120
+
+- name: Add container to in-memory inventory
+  add_host:
+    name: "{{ hostname }}"
+    ansible_host: "{{ ip }}"
+    ansible_user: root
+    ansible_password: "{{ lxc_root_password }}"
+    groups: 
+      - lxc_containers
+      - "{{ hostname }}_group"

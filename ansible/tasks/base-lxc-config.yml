@@ -1,0 +1,79 @@
+---
+# Reusable base LXC configuration
+# Runs on the target container
+
+- name: Update package cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  apt:
+    upgrade: dist
+
+- name: Install base packages
+  apt:
+    name: "{{ base_packages }}" #stored in group_vars/all.yml
+    state: present
+
+- name: Set timezone
+  timezone:
+    name: America/Dtroit
+
+- name: Create admin user
+  user:
+    name: "{{ admin_username }}" #stored in group_vars/all.yml
+    password: "{{ admin_password_hash }}" #stored in Secrets
+    shell: /bin/bash
+    groups: sudo
+    append: yes
+    state: present
+
+- name: Create .ssh directory for admin user
+  file:
+    path: "/home/{{ admin_username }}/.ssh"
+    state: directory
+    owner: "{{ admin_username }}"
+    group: "{{ admin_username }}"
+    mode: '0700'
+
+- name: Add SSH key for admin user
+  authorized_key:
+    user: "{{ admin_username }}"
+    key: "{{ admin_ssh_key }}" #stored in group_vars/all.yml
+    state: present
+
+- name: Configure unattended upgrades
+  debconf:
+    name: unattended-upgrades
+    question: unattended-upgrades/enable_auto_updates
+    value: 'true'
+    vtype: boolean
+
+- name: Configure rsyslog for Graylog
+  blockinfile:
+    path: /etc/rsyslog.d/60-graylog.conf
+    create: yes
+    block: |
+      # Forward logs to Graylog
+      *.* @@{{ graylog_server }}:514;RSYSLOG_SyslogProtocol23Format
+  notify: Restart rsyslog
+  when: graylog_enabled | default(true)
+
+- name: Disable root SSH password login
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin prohibit-password'
+  notify: Restart sshd
+
+handlers:
+  - name: Restart rsyslog
+    service:
+      name: rsyslog
+      state: restarted
+  
+  - name: Restart sshd
+    service:
+      name: sshd
+      state: restarted

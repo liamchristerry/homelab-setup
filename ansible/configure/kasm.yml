@@ -1,0 +1,46 @@
+- name: Setup Kasm Workspaces Host
+  hosts: kasmhost
+  become: yes
+
+  vars:
+    kasm_version: "1.17.0.7f020d"
+    kasm_tar: "kasm_release_{{ kasm_version }}.tar.gz"
+    kasm_url: "https://kasm-static-content.s3.amazonaws.com/{{ kasm_tar }}"
+
+  tasks:
+    - name: Create User Liam
+      ansible.builtin.user:
+        name: liam
+        password: '$6$ucwTW4xk040GiZUs$QPoLpSkDeIgQgHGG1h3Gf2xKPiiNOeRkdsWpQUFMVYw2kTrJZYz0DL2BHXyedYi2e3X.zWYNOhc53WxGZ09qj.'
+        groups: sudo
+        shell: /bin/bash
+        state: present
+
+    - name: Ensure dependencies are installed
+      ansible.builtin.package:
+        name: [curl, tar]
+        state: present
+
+    - name: Download Kasm installer
+      ansible.builtin.get_url:
+        url: "{{ kasm_url }}"
+        dest: /tmp/{{ kasm_tar }}
+
+    - name: Extract Kasm installer
+      ansible.builtin.unarchive:
+        src: /tmp/{{ kasm_tar }}
+        dest: /tmp
+        remote_src: yes
+
+    - name: Run Kasm installer with EULA acceptance
+      ansible.builtin.command:
+        cmd: "bash /tmp/kasm_release/install.sh --accept-eula --swap-size 8192"
+      register: kasm_install
+      args:
+        chdir: /tmp/kasm_release
+      become: yes
+
+    - name: Show installer output (includes passwords)
+      ansible.builtin.debug:
+        var: kasm_install.stdout_lines
+

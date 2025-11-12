@@ -1,0 +1,72 @@
+---
+# Clone VM from existing template
+# Required vars: vmid, hostname, ip, gateway, subnet, template_id
+
+- name: Clone VM from template - {{ hostname }}
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_password }}"
+    node: "{{ proxmox_node }}"
+    vmid: "{{ vmid }}"
+    name: "{{ hostname }}"
+    clone: "{{ template_id }}"
+    full: yes
+    storage: "{{ vm_storage }}"
+    state: present
+    validate_certs: no
+
+- name: Configure cloned VM - {{ hostname }}
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_password }}"
+    node: "{{ proxmox_node }}"
+    vmid: "{{ vmid }}"
+    update: yes
+    
+    # Update resources if specified
+    cores: "{{ cores | default(vm_default_cores) }}"
+    memory: "{{ memory | default(vm_default_memory) }}"
+    
+    # Update network config
+    ipconfig0: "ip={{ ip }}/{{ subnet }},gw={{ gateway }}"
+    nameserver: "{{ nameserver | default(dns_server) }}"
+    
+    # Cloud-init settings
+    ciuser: "{{ admin_username }}"
+    cipassword: "{{ vm_root_password | default(lxc_root_password) }}"
+    sshkeys: "{{ admin_ssh_key }}"
+    
+    validate_certs: no
+
+- name: Resize disk if specified
+  command: "qm resize {{ vmid }} scsi0 {{ disk }}G"
+  when: disk is defined
+  delegate_to: "{{ proxmox_api_host }}"
+
+- name: Start VM - {{ hostname }}
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_password }}"
+    vmid: "{{ vmid }}"
+    state: started
+    validate_certs: no
+
+- name: Wait for cloud-init to complete
+  wait_for:
+    host: "{{ ip }}"
+    port: 22
+    delay: 30
+    timeout: 300
+
+- name: Add VM to in-memory inventory
+  add_host:
+    name: "{{ hostname }}"
+    ansible_host: "{{ ip }}"
+    ansible_user: "{{ admin_username }}"
+    ansible_ssh_private_key_file: "~/.ssh/id_rsa"
+    groups: 
+      - vms
+      - "{{ hostname }}_group"
