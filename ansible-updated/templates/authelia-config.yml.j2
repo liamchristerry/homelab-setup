@@ -1,0 +1,50 @@
+---
+# Authelia Configuration
+# Managed by Ansible
+
+server:
+  host: 0.0.0.0
+  port: 9091
+  trusted_proxies:
+    - 127.0.0.1/32
+    - {{ services.nginx.ip }}/32
+
+log:
+  level: info
+  format: text
+  file_path: /var/log/authelia/authelia.log
+
+totp:
+  issuer: {{ domain | default('home.lab') }}
+  period: 30
+  skew: 1
+
+authentication_backend:
+  file:
+    path: /etc/authelia/users_database.yml
+
+access_control:
+  default_policy: deny
+  rules:
+    - domain: "auth.{{ domain | default('home.lab') }}"
+      policy: bypass
+
+session:
+  name: authelia_session
+  domain: {{ domain | default('home.lab') }}
+  expiration: 1h
+  inactivity: 5m
+  same_site: lax
+
+regulation:
+  max_retries: 3
+  find_time: 10m
+  ban_time: 30m
+
+storage:
+  local:
+    path: /var/lib/authelia/db.sqlite3
+
+notifier:
+  filesystem:
+    filename: /var/log/authelia/notification.txt

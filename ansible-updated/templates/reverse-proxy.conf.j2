@@ -1,0 +1,83 @@
+# Reverse Proxy Configuration
+# Managed by Ansible - Do not edit manually
+
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_read_timeout 90;
+
+proxy_pass_header Set-Cookie;
+proxy_pass_header Authorization;
+proxy_pass_request_headers on;
+
+proxy_buffering off;
+proxy_request_buffering off;
+proxy_http_version 1.1;
+
+access_log /var/log/nginx/access.log;
+error_log /var/log/nginx/error.log;
+
+# Geo block for internal services
+geo $internal_network {
+    default 0;
+    192.168.22.0/24 1;
+}
+
+##########################################################
+# Syncthing - INTERNAL ONLY
+##########################################################
+server {
+    listen {{ services.nginx.ip }}:80;
+    server_name syncthing.home.lab;
+
+    # Restrict to internal network
+    if ($internal_network = 0) {
+        return 403;
+    }
+
+    location / {
+        proxy_pass http://192.168.99.155:8384/;
+        proxy_ssl_verify off;
+    }
+}
+
+##########################################################
+# Pi-hole - INTERNAL ONLY
+##########################################################
+server {
+    listen {{ services.nginx.ip }}:80;
+    server_name pihole.home.lab;
+
+    # Restrict to internal network
+    if ($internal_network = 0) {
+        return 403;
+    }
+
+    location / {
+        proxy_pass http://{{ services.pihole.ip }}/;
+        proxy_ssl_verify off;
+    }
+}
+
+##########################################################
+# Proxmox - INTERNAL ONLY
+##########################################################
+server {
+    listen {{ services.nginx.ip }}:80;
+    server_name proxmox.home.lab;
+
+    # Restrict to internal network
+    if ($internal_network = 0) {
+        return 403;
+    }
+
+    location / {
+        proxy_pass https://{{ proxmox_api_host }}:8006/;
+        proxy_ssl_verify off;
+        
+        # WebSocket support for Proxmox console
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}

@@ -1,0 +1,6 @@
+---
+- name: Deploy Authelia (Create + Configure)
+  import_playbook: ../create/authelia.yml
+
+- name: Configure Authelia
+  import_playbook: ../configure/authelia.yml

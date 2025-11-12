@@ -1,0 +1,92 @@
+---
+- name: Configure Authelia SSO Server
+  hosts: authelia
+  become: yes
+  
+  vars:
+    authelia_version: "4.38.0"
+  
+  tasks:
+    - name: Apply base LXC configuration
+      include_tasks: ../tasks/base-lxc-config.yml
+    
+    - name: Install Authelia dependencies
+      apt:
+        name:
+          - wget
+          - ca-certificates
+          - sqlite3
+        state: present
+    
+    - name: Download Authelia binary
+      get_url:
+        url: "https://github.com/authelia/authelia/releases/download/v{{ authelia_version }}/authelia-v{{ authelia_version }}-linux-amd64.tar.gz"
+        dest: /tmp/authelia.tar.gz
+        mode: '0644'
+    
+    - name: Extract Authelia binary
+      unarchive:
+        src: /tmp/authelia.tar.gz
+        dest: /usr/local/bin/
+        remote_src: yes
+        creates: /usr/local/bin/authelia
+        extra_opts: [--strip-components=1]
+    
+    - name: Make Authelia executable
+      file:
+        path: /usr/local/bin/authelia
+        mode: '0755'
+    
+    - name: Create Authelia directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /etc/authelia
+        - /var/lib/authelia
+        - /var/log/authelia
+    
+    - name: Deploy Authelia configuration
+      template:
+        src: ../templates/authelia-config.yml.j2
+        dest: /etc/authelia/configuration.yml
+        mode: '0600'
+      notify: Restart authelia
+    
+    - name: Create Authelia systemd service
+      copy:
+        dest: /etc/systemd/system/authelia.service
+        content: |
+          [Unit]
+          Description=Authelia authentication and authorization server
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=root
+          WorkingDirectory=/var/lib/authelia
+          ExecStart=/usr/local/bin/authelia --config /etc/authelia/configuration.yml
+          Restart=on-failure
+          RestartSec=5s
+          
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+      notify: Reload systemd
+    
+    - name: Start and enable Authelia
+      systemd:
+        name: authelia
+        state: started
+        enabled: yes
+  
+  handlers:
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+    
+    - name: Restart authelia
+      systemd:
+        name: authelia
+        state: restarted

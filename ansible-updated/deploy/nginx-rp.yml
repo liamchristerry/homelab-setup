@@ -1,0 +1,6 @@
+---
+- name: Deploy Nginx (Create + Configure)
+  import_playbook: ../create/nginx.yml
+
+- name: Configure Nginx
+  import_playbook: ../configure/nginx.yml

@@ -1,0 +1,11 @@
+---
+- name: Create Authelia LXC Container
+  hosts: localhost
+  gather_facts: no
+  
+  vars:
+    service_name: authelia
+  
+  tasks:
+    - name: Create Authelia LXC on Proxmox
+      include_tasks: ../tasks/create-lxc.yml

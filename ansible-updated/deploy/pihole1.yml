@@ -1,0 +1,6 @@
+---
+- name: Deploy Pi-hole (Create + Configure)
+  import_playbook: ../create/pihole.yml
+
+- name: Configure Pi-hole
+  import_playbook: ../configure/pihole.yml
