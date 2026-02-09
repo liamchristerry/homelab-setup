@@ -2,6 +2,20 @@
 # Reusable base LXC configuration
 # Runs on the target container
 
+- name: Set base configuration variables
+  set_fact:
+    base_packages:
+      - vim
+      - curl
+      - wget
+      - htop
+      - net-tools
+      - rsyslog
+      - unattended-upgrades
+    admin_ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBzcwi... your_key_here"
+    graylog_server: "192.168.99.140"
+
+
 - name: Update package cache
   apt:
     update_cache: yes
@@ -13,17 +27,17 @@
 
 - name: Install base packages
   apt:
-    name: "{{ base_packages }}" #stored in group_vars/all.yml
+    name: "{{ base_packages }}"
     state: present
 
 - name: Set timezone
   timezone:
-    name: America/Dtroit
+    name: America/Detroit
 
 - name: Create admin user
   user:
-    name: "{{ admin_username }}" #stored in group_vars/all.yml
-    password: "{{ admin_password_hash }}" #stored in Secrets
+    name: "{{ admin_username }}"  # stored in @secrets.yml
+    password: "{{ admin_password_hash }}"  # stored in Secrets
     shell: /bin/bash
     groups: sudo
     append: yes
@@ -40,7 +54,7 @@
 - name: Add SSH key for admin user
   authorized_key:
     user: "{{ admin_username }}"
-    key: "{{ admin_ssh_key }}" #stored in group_vars/all.yml
+    key: "{{ admin_ssh_key }}"  # stored in group_vars/all.yml
     state: present
 
 - name: Configure unattended upgrades
@@ -57,23 +71,23 @@
     block: |
       # Forward logs to Graylog
       *.* @@{{ graylog_server }}:514;RSYSLOG_SyslogProtocol23Format
-  notify: Restart rsyslog
-  when: graylog_enabled | default(true)
+  register: rsyslog_config
+
+- name: Restart rsyslog if config changed
+  service:
+    name: rsyslog
+    state: restarted
+  when: rsyslog_config.changed
 
 - name: Disable root SSH password login
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?PermitRootLogin'
     line: 'PermitRootLogin prohibit-password'
-  notify: Restart sshd
+  register: sshd_config
 
-handlers:
-  - name: Restart rsyslog
-    service:
-      name: rsyslog
-      state: restarted
-  
-  - name: Restart sshd
-    service:
-      name: sshd
-      state: restarted
+- name: Restart sshd if config changed
+  service:
+    name: sshd
+    state: restarted
+  when: sshd_config.changed

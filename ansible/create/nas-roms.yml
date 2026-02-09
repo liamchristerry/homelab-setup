@@ -4,10 +4,7 @@
   gather_facts: no
   
   vars:
-    proxmox_node: #########################
-    proxmox_api_host: "192.168.99.212
-    proxmox_api_user: "root@pam"
-
+    proxmox_node: proxmox2.home.lab
     vmid: 150
     hostname: nas-roms
     ip: 192.168.99.150

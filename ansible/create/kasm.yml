@@ -4,10 +4,7 @@
   gather_facts: no
   
   vars:
-    proxmox_node: #########################
-    proxmox_api_host: "192.168.99.211
-    proxmox_api_user: "root@pam"
-
+    proxmox_node: proxmox2.home.lab
     vmid: 110
     hostname: kasm
     ip: 192.168.99.110

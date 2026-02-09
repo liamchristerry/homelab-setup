@@ -4,10 +4,7 @@
   gather_facts: no
   
   vars:
-    proxmox_node: #########################
-    proxmox_api_host: "192.168.99.210
-    proxmox_api_user: "root@pam"
-
+    proxmox_node: proxmox0.home.lab
     vmid: 105
     hostname: authelia
     ip: 192.168.99.105
@@ -20,6 +17,7 @@
     lxc_swap: 512
     lxc_disk: "8"
     lxc_storage: "local-lvm"
+    lxc_template: "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
   
   tasks:
     - name: Create nginx LXC on Proxmox

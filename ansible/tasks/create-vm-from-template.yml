@@ -17,7 +17,7 @@
     validate_certs: no
 
 - name: Configure cloned VM - {{ hostname }}
-  community.general.proxmox_kvm:
+  community.proxmox.proxmox_kvm:
     api_host: "{{ proxmox_api_host }}"
     api_user: "{{ proxmox_api_user }}"
     api_password: "{{ proxmox_password }}"
@@ -46,7 +46,7 @@
   delegate_to: "{{ proxmox_api_host }}"
 
 - name: Start VM - {{ hostname }}
-  community.general.proxmox_kvm:
+  community.proxmox.proxmox_kvm:
     api_host: "{{ proxmox_api_host }}"
     api_user: "{{ proxmox_api_user }}"
     api_password: "{{ proxmox_password }}"

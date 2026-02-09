@@ -4,10 +4,7 @@
   gather_facts: no
   
   vars:
-    proxmox_node: #########################
-    proxmox_api_host: "192.168.99.210
-    proxmox_api_user: "root@pam"
-
+    proxmox_node: proxmox0.home.lab
     vmid: 102
     hostname: authelia
     ip: 192.168.99.102

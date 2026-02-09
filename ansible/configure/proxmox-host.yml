@@ -1,8 +1,11 @@
 ---
 - name: Configure Proxmox Post-Install
   hosts: proxmox
-  become: yes
   gather_facts: yes
+
+
+## need to add ssh key
+
 
   vars:
     # VLAN configuration (applies to all hosts)

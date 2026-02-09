@@ -7,35 +7,57 @@
     authelia_version: "4.38.0"
   
   tasks:
-    - name: Apply base LXC configuration
-      include_tasks: ../tasks/base-lxc-config.yml
+    # - name: Apply base LXC configuration
+    #   include_tasks: "{{ playbook_dir }}/../tasks/base-lxc-config.yml" # Realitive path from playbook location to the task file
     
-    - name: Install Authelia dependencies
-      apt:
-        name:
-          - wget
-          - ca-certificates
-          - sqlite3
-        state: present
+    # - name: Install Authelia dependencies
+    #   apt:
+    #     name:
+    #       - wget
+    #       - ca-certificates
+    #       - sqlite3
+    #     state: present
     
     - name: Download Authelia binary
       get_url:
         url: "https://github.com/authelia/authelia/releases/download/v{{ authelia_version }}/authelia-v{{ authelia_version }}-linux-amd64.tar.gz"
         dest: /tmp/authelia.tar.gz
         mode: '0644'
-    
+
     - name: Extract Authelia binary
       unarchive:
         src: /tmp/authelia.tar.gz
-        dest: /usr/local/bin/
+        dest: /tmp/
         remote_src: yes
-        creates: /usr/local/bin/authelia
-        extra_opts: [--strip-components=1]
-    
-    - name: Make Authelia executable
-      file:
-        path: /usr/local/bin/authelia
+
+    - name: Copy Authelia binary to /usr/local/bin
+      copy:
+        src: /tmp/authelia-linux-amd64
+        dest: /usr/local/bin/authelia
         mode: '0755'
+        remote_src: yes
+
+    - name: Verify Authelia is executable
+      command: /usr/local/bin/authelia --version
+      register: authelia_version_check
+      changed_when: false
+
+    - name: Show Authelia version
+      debug:
+        var: authelia_version_check.stdout_lines
+    
+    # - name: Extract Authelia binary
+    #   unarchive:
+    #     src: /tmp/authelia.tar.gz
+    #     dest: /usr/local/bin/
+    #     remote_src: yes
+    #     #creates: /usr/local/bin/authelia
+    #     extra_opts: [--strip-components=1]
+    
+    # - name: Make Authelia executable
+    #   file:
+    #     path: /usr/local/bin/authelia
+    #     mode: '0755'
     
     - name: Create Authelia directories
       file:
@@ -47,12 +69,12 @@
         - /var/lib/authelia
         - /var/log/authelia
     
-    - name: Deploy Authelia configuration
-      template:
-        src: ../templates/authelia-config.yml.j2
-        dest: /etc/authelia/configuration.yml
-        mode: '0600'
-      notify: Restart authelia
+    # - name: Deploy Authelia configuration
+    #   template:
+    #     src: ../templates/authelia-config.yml.j2
+    #     dest: /etc/authelia/configuration.yml
+    #     mode: '0600'
+    #   notify: Restart authelia
     
     - name: Create Authelia systemd service
       copy:

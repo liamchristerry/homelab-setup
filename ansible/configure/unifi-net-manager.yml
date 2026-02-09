@@ -1,0 +1,72 @@
+---
+- name: Configure Unfi Network Manager
+  hosts: pihole
+  become: yes
+  
+  vars:
+   unifi_apt_key: "https://dl.ui.com/unifi/unifi-repo.gpg"
+   unifi_keyring: "/etc/apt/trusted.gpg.d/unifi-repo.gpg"
+  
+  tasks:
+    - name: Apply base LXC configuration
+      include_tasks: ../tasks/base-lxc-config.yml
+    
+    - name: Install Pi-hole prerequisites
+      apt:
+        name:
+          - ca-certificates
+          - apt-transport-https
+        state: present
+    
+    - name: Add Unfi APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [ arch=amd64,arm64 ] https://www.ui.com/downloads/unifi/debian stable ubiquiti"
+        filename: "unifi"
+        state: present
+
+    - name: Add MongoDB APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [trusted=yes] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/3.6 multiverse"
+        filename: "mongodb"
+        state: present
+
+    - name: Download UniFi release PGP key
+      ansible.builtin.get_url:
+        url: "{{ unifi_apt_key }}"
+        dest: "{{ unifi_keyring }}"
+        mode: "0644"
+
+    - name: Update apt cache after adding repository
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install UniFi Controller
+      ansible.builtin.apt:
+        name: unifi
+        state: present
+
+    - name: Ensure UniFi service is enabled and started
+      ansible.builtin.service:
+        name: unifi
+        state: started
+        enabled: yes
+
+    - name: Wait for UniFi Controller to be ready
+      ansible.builtin.wait_for:
+        port: 8443
+        delay: 10
+        timeout: 60
+
+    - name: Display access information
+      ansible.builtin.debug:
+        msg:
+          - "UniFi Controller installed successfully!"
+          - "Access at: https://{{ lxc_ip }}:8443"
+          - "Complete the setup wizard in your browser"
+          - "Add to your nginx reverse proxy for unifi.home.lab access"
+
+
+
+
+
+
