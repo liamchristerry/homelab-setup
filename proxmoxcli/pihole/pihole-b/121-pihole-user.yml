@@ -1,7 +1,7 @@
 #cloud-config
-hostname: pihole
+hostname: pihole-b
 manage_etc_hosts: true
-fqdn: pihole.home.lab
+fqdn: pihole-b.home.lab
 ssh_pwauth: true
   
 users:

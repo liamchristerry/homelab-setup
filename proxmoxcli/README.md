@@ -29,7 +29,13 @@ runcmd:
   - echo "job done" >> /home/liam/testing
 ```
 
-
+# Access into VMs
+- SSH for ansible user
+  - SSH key is on WSL instance
+- Password for liam user, see below how to generate a hash password
+```
+mkpasswd -m sha-512 "MyPassword123"
+```
 
 # Useful Commands
 ```

@@ -1,5 +1,5 @@
 # Todo
-- enable QEMU in the image setup
+
 
 # Notes
 - ansible folder and scripts is still a work in progress

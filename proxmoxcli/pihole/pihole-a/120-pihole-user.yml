@@ -1,7 +1,7 @@
 #cloud-config
-hostname: nasroms
+hostname: pihole-a
 manage_etc_hosts: true
-fqdn: nasroms.home.lab
+fqdn: pihole-a.home.lab
 ssh_pwauth: true
   
 users:

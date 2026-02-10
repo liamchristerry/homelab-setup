@@ -12,10 +12,5 @@ qm set 999 --serial0 socket --vga serial0
 #setup QEMU support 
 qm set 999 --agent 1
 
-#Genric base OS setup 
-qm set 999 --ipconfig0 ip=dhcp
-qm set 999 --ciuser liam
-qm set 999 --cipassword temppass
-
 #convert to a template
 qm set 999 --template 1

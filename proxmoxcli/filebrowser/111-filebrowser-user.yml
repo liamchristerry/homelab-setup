@@ -1,0 +1,89 @@
+#cloud-config
+hostname: filebrowser
+manage_etc_hosts: true
+fqdn: filebrowser.home.lab
+ssh_pwauth: true
+
+users:
+  - name: ansible
+    lock_passwd: false # Makes sure the user is not locked 
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFBaA+DrpzzvqoaEvLaEbVJJ5R2JW+40UWF7ekPwE6+N
+
+chpasswd: # doing this since the password and ssh key for one user messed up somtimes
+  expire: false
+  users:
+    - name: ansible
+      password: '$6$kDvIX0C.Zyp9YZuM$gRuZmcsSQoPaVcP1GgAHOmlJc/za0k7emo9WslkHlwH31MGF1bPWZ.eKV/NVerg9jwFcqvj4JuUUVzfHJv.V0/'
+      type: hash
+
+package_upgrade: true
+packages:
+  - qemu-guest-agent
+  - nfs-common
+
+write_files:
+  - path: /etc/filebrowser/filebrowser.json
+    defer: true #needing this due to the order that writefiles is ran. Runs before users are crated
+    owner: ansible:ansible
+    permissions: '0644'
+    content: |
+      {
+        "port": 8080,
+        "baseURL": "",
+        "address": "0.0.0.0",
+        "log": "stdout",
+        "database": "/etc/filebrowser/filebrowser.db",
+        "root": "/mnt/nfs-share/",
+        "signup": false,
+        "createUserDir": false,
+        "username": "liam",
+        "password": "$2a$10$fPrjg7COXVUPD90Gx4Oxke8cJic63UMfW0whppnCWh7w9C6c29tVW"
+      }
+# Hash created with filebrower hash <password> 
+
+  - path: /etc/systemd/system/filebrowser.service
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=File Browser
+      After=network.target
+      [Service]
+      ExecStart=/usr/local/bin/filebrowser -c /etc/filebrowser/filebrowser.json
+      [Install]
+      WantedBy=multi-user.target
+
+mounts:
+  - [ "192.168.99.200:/volume1/media", "/mnt/nfs-share", "nfs", "defaults,_netdev,hard,intr", "0", "0" ]
+
+
+runcmd:
+  # Create necessary directories
+  - mkdir -p /mnt/nfs-share
+ # - mkdir -p /var/lib/filebrowser
+  - chown -R ansible:ansible /var/lib/filebrowser
+
+  # Mount NFS share
+  - mount /mnt/nfs-share || true
+
+  # Set permissions on mount point
+  - chown ansible:ansible /mnt/nfs-share
+  - chmod 755 /mnt/nfs-share
+
+   # Install FileBrowser
+  - curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash
+
+  # Enable and start services
+  - systemctl daemon-reload
+  - systemctl enable qemu-guest-agent
+  - systemctl start qemu-guest-agent
+  - systemctl enable filebrowser.service
+  - systemctl start filebrowser.service
+  
+  - echo "cloud-init setup complete" >> /home/ansible/cloudinit.log
+
