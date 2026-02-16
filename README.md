@@ -19,16 +19,17 @@ IP address
 99.213 - Proxmox3 (Dell 5070)
 
 99.100 - Nginix Reverse proxy
-99.102 - Cloud Flare tunnel
+99.102 - Cloud Flare tunnel (Not Running)
+99.110 - Kasm (Not Running)
+99.111 - File Browser
+browser.home.lab
+99.112 - Open Speed Test
+speedtest.home.lab
 99.120 - Pihole 1 
 99.121 - pihile 2
-99.115 - UniFi Controller
-99.130 - Plex
-99.140 - garyLog
+99.130 - Plex (Not Running)
+99.140 - garyLog (Not Running)
 99.155 - Syncthing
-99.160 - Gitea
-99.165 - File Browser
-99.170 - CouchDB
-99.110 - Kasm
-99.180 - Immich
-99.220 - Promox Backup Server
+syncthing.home.lab
+99.180 - Immich (Not Running)
+99.220 - Promox Backup Server (Not Running)

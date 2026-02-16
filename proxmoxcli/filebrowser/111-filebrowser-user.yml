@@ -58,6 +58,18 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+ # MOTD - shows on every SSH login
+  - path: /etc/update-motd.d/99-nginx
+    owner: root:root
+    permissions: '0755'
+    defer: true
+    content: |
+      echo "#########################################"
+      echo "#     Update Nginx Reverse Proxy        #
+      echo "#     Remove this Message After         #
+      echo "#  sudo rm /etc/update-motd.d/99-nginx  #
+      echo "#########################################"
+      
 mounts:
   - [ "192.168.99.200:/volume1/media", "/mnt/nfs-share", "nfs", "defaults,_netdev,hard,intr", "0", "0" ]
 
@@ -86,4 +98,3 @@ runcmd:
   - systemctl start filebrowser.service
   
   - echo "cloud-init setup complete" >> /home/ansible/cloudinit.log
-

@@ -11,18 +11,95 @@ users:
     sudo: ALL=(ALL) NOPASSWD:ALL
     ssh_authorized_keys:
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFBaA+DrpzzvqoaEvLaEbVJJ5R2JW+40UWF7ekPwE6+N
+ 
+  - name: syncthing 
+    shell: /bin/bash
+    lock_passwd: true
 
 package_upgrade: true
 packages:
   - qemu-guest-agent
+  - curl
+  - nfs-common
+
+write_files:
+  - path: /etc/systemd/system/syncthing.service
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+        [Unit]
+        Description=Syncthing
+        [Service]
+        Type=simple
+        ExecStart=/usr/bin/syncthing
+        User=syncthing
+        [Install]
+        WantedBy=multi-user.target
+
+  - path: /etc/cron.d/syncthing-backup
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+        #!/bin/bash
+        TIMESTAMP=$(date +%Y%m%d)
+        CONFIG_DIR="/home/syncthing/.local"
+        BACKUP_DIR="/mnt/nas/backups/syncthing_config"
+
+        systemctl stop syncthing.service
+        tar -czvf "CONFIG_DIR/syncthing_config-$TIMESTAMP.tar.gz" $BACKUP_DIR
+
+        #Remove files older than 30 days
+        ls -t "$BACKUP_DIR"/syncthing-config-*.tar.gz | tail -n +31 | xargs rm -f 2>/dev/null
+
+        systemctl start syncthing.service
+
+  # MOTD - shows on every SSH login
+  - path: /etc/update-motd.d/99-nag
+    owner: root:root
+    permissions: '0755'
+    defer: true
+    content: |
+      echo "#########################################"
+      echo "#     Create DNS record on PIHoles      #
+      echo "#     Enable versions on folders        #
+      echo "#     Remove this Message After         #
+      echo "#  sudo rm /etc/update-motd.d/99-nag  #
+      echo "#########################################"
+      
+
+
+mounts:
+  - [ "192.168.99.200:/volume1/media", "/mnt/nas", "nfs", "defaults,_netdev,hard,intr", "0", "0" ]
 
 runcmd:
+#install syncthing
+  - mkdir -p /etc/apt/keyrings
+  - curl -fsSL https://syncthing.net/release-key.gpg -o /etc/apt/keyrings/syncthing-archive-keyring.gpg
+  - echo "deb [signed-by=/etc/apt/keyrings/syncthing-archive-keyring.gpg] https://apt.syncthing.net/ syncthing stable" > /etc/apt/sources.list.d/syncthing.list
+  - apt update
+  - apt install -y syncthing
+
+#enable and start syncthing (service file is created with writefiles module above)
+  - systemctl enable syncthing.service
+  - systemctl start syncthing.service
+
+#adding the sleep to give syncthing some time to start 
+  - sleep 10
+
+#add base configuration of syncthing, include binding to all IPs for management and create folders
+  - syncthing cli --home=/home/syncthing/.local/state/syncthing/ config gui raw-address set 0.0.0.0:8384
+  - deviceid=$(syncthing cli --home=/home/syncthing/.local/state/syncthing/ config devices list)
+  - syncthing cli --home=/home/syncthing/.local/state/syncthing/ config devices $deviceid name set "Syncthing Server"
+  - syncthing cli --home=/home/syncthing/.local/state/syncthing/ config folders add --id retroarch-saves --label "retroarch-saves" --path /mnt/nas/GameSaves/retroarch-saves
+  - syncthing cli --home=/home/syncthing/.local/state/syncthing/ config folders add --id retroarch-states --label "retroarch-states" --path /mnt/nas/GameSaves/retroarch-states
+
+#Create backup job for syncthing
+  - chmod +x /etc/cron.d/syncthing-backup
+  - echo "0 2 * * * root /usr/local/bin/backup-syncthing-config" > /etc/cron.d/syncthing-backup
+
   - systemctl enable --now qemu-guest-agent
   - echo "cloud-init base setup complete" >> /home/ansible/cloudinit.log
 
-final_message: |
-  cloud-init has finished
-  version: $version
-  timestamp: $timestamp
-  datasource: $datasource
-  uptime: $uptime
+

@@ -1,3 +1,4 @@
+# Run on Dell 1
 qm clone 999 121 --name pihole-b --full true --storage local-ssd --target proxmox1
 
 qm set 121 --description "PiHole B"

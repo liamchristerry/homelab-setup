@@ -1,3 +1,4 @@
+## Run on NUC
 qm clone 999 120 --name pihole-a --full true --storage local-ssd --target proxmox1
 
 qm set 120 --description "PiHole A"
