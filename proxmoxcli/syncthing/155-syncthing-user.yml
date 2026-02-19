@@ -37,7 +37,7 @@ write_files:
         [Install]
         WantedBy=multi-user.target
 
-  - path: /etc/cron.d/syncthing-backup
+  - path: /usr/local/bin/backup-syncthing-config
     defer: true
     owner: root:root
     permissions: '0644'
@@ -48,12 +48,54 @@ write_files:
         BACKUP_DIR="/mnt/nas/backups/syncthing_config"
 
         systemctl stop syncthing.service
-        tar -czvf "CONFIG_DIR/syncthing_config-$TIMESTAMP.tar.gz" $BACKUP_DIR
+        sleep 2
+        # Backup config 
+        tar -czvf "$BACKUP_DIR/syncthing_config-$TIMESTAMP.tar.gz" -C "$CONFIG_DIR" .
 
-        #Remove files older than 30 days
-        ls -t "$BACKUP_DIR"/syncthing-config-*.tar.gz | tail -n +31 | xargs rm -f 2>/dev/null
+        # Check if backup succeeded
+        if [ $? -eq 0 ]; then
+
+          #Remove files older than 30 days
+          ls -t "$BACKUP_DIR"/syncthing-config-*.tar.gz | tail -n +31 | xargs rm -f 2>/dev/null
 
         systemctl start syncthing.service
+
+  - path: /tmp/50unattended-upgrades
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+        Unattended-Upgrade::Allowed-Origins {
+        "${distro_id}:${distro_codename}";
+        "${distro_id}:${distro_codename}-security";
+        "${distro_id}:${distro_codename}-updates";
+        };
+        // Updates OS and packages that are in main repo only with this configuration
+
+        // Sends logs to syslog /var/log/syslog
+        Unattended-Upgrade::SyslogEnable "true";
+        Unattended-Upgrade::SyslogFacility "daemon";
+
+        // Auto reboot 3am if users are logged in or not
+        Unattended-Upgrade::Automatic-Reboot "true";
+        Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+
+        // Cleanup
+        Unattended-Upgrade::Remove-Unused-Dependencies "true";
+        Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+        Unattended-Upgrade::LogRotate "6";
+
+        // Normal Unattended Update logs /var/log/unattended-upgrades/
+
+  - path: /tmp/20auto-upgrades
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+        APT::Periodic::Update-Package-Lists "1";
+        APT::Periodic::Unattended-Upgrade "1";
+        APT::Periodic::AutocleanInterval "7";
+
 
   # MOTD - shows on every SSH login
   - path: /etc/update-motd.d/99-nag
@@ -81,6 +123,8 @@ runcmd:
   - apt update
   - apt install -y syncthing
 
+  - mount /mnt/nas || true
+
 #enable and start syncthing (service file is created with writefiles module above)
   - systemctl enable syncthing.service
   - systemctl start syncthing.service
@@ -96,8 +140,19 @@ runcmd:
   - syncthing cli --home=/home/syncthing/.local/state/syncthing/ config folders add --id retroarch-states --label "retroarch-states" --path /mnt/nas/GameSaves/retroarch-states
 
 #Create backup job for syncthing
-  - chmod +x /etc/cron.d/syncthing-backup
+  - chmod +x /usr/local/bin/backup-syncthing-config
   - echo "0 2 * * * root /usr/local/bin/backup-syncthing-config" > /etc/cron.d/syncthing-backup
+
+#Editing Unattended Upgrades. Sets auto reboots if needed, updates and security.
+  - mv /etc/apt/apt.conf.d/20auto-upgrades /etc/apt/apt.conf.d/20auto-upgrades.orig
+  - mv /etc/apt/apt.conf.d/50unattended-upgrades /etc/apt/apt.conf.d/50unattended-upgrades.orig
+  - mv /tmp/20auto-upgrades /etc/apt/apt.conf.d/20auto-upgrades
+  - mv /tmp/50unattended-upgrades /etc/apt/apt.conf.d/50unattended-upgrades
+
+
+#Create cron to upgrade other apps weekly (Sunday 4 AM)
+#Uses Logger to log to /var/log/syslog
+  - echo "0 4 * * 0  apt update && apt upgrade -y 2>&1 | logger -t apt-weekly-upgrade" > /etc/cron.d/aptupdate-upgrade
 
   - systemctl enable --now qemu-guest-agent
   - echo "cloud-init base setup complete" >> /home/ansible/cloudinit.log

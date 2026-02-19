@@ -1,0 +1,51 @@
+#cloud-config
+hostname: freshrss
+manage_etc_hosts: true
+fqdn: freshrss.home.lab
+ssh_pwauth: true
+  
+users:
+  - name: ansible
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFBaA+DrpzzvqoaEvLaEbVJJ5R2JW+40UWF7ekPwE6+N
+
+packages:
+  - qemu-guest-agent
+  - docker.io
+  - docker-compose
+
+runcmd:
+  # Enable Docker service
+  - systemctl enable --now docker
+  
+  # Create directory for docker-compose
+  - mkdir -p /opt/freshrss
+  
+  # Create docker-compose file
+  - |
+    cat > /opt/freshrss/docker-compose.yml <<'EOF'
+    version: '3'
+    services:
+      freshrss:
+        image: lscr.io/linuxserver/freshrss:latest
+        container_name: freshrss
+        restart: unless-stopped
+        ports:
+          80:80
+        environment:
+          - TZ=America/New_York
+          - PUID=1000
+          - PGID=1000
+    EOF
+  
+  # Start freshrss
+  - cd /opt/freshrss && docker-compose up -d
+  
+  # Enable guest agent
+  - systemctl enable --now qemu-guest-agent
+  
+  # Log completion
+  - echo "freshrss running at http://$(hostname -I | awk '{print $1}')" >> /home/ansible/install.log
