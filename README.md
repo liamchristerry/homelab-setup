@@ -1,38 +1,69 @@
-# Todo
+# Create User CloudInit Config
 
 
-# Notes
-- ansible folder and scripts is still a work in progress
+```
+qm cloudinit dump 999 user > ubuntu-base.yml
+mv ubuntu-base.yml /mnt/snipcustom/snippets/
+qm set 999 --cicustom "user=snipcustom:snippets/ubuntu-base.yml"
+```
+
+## Sample User CloudInit
+
+```
+#cloud-config
+hostname: ubuntu-cloud
+manage_etc_hosts: true
+fqdn: ubuntu-cloud
+user: liam
+password: $5$ABbS/nH/$jEGmDe8tDSFOPhtxbE9sROAq0Rvrgl7nKII6R1M19ZD
+chpasswd:
+  expire: False
+users:
+  - default
+package_upgrade: true
+packages:
+  - qemu-guest-agent
+runcmd:
+  - systemctl start qemu-guest-agent
+  - systemctl enable qemu-guest-agent
+  - echo "job done" >> /home/liam/testing
+```
+
+# Access into VMs
+- SSH for ansible user
+  - SSH key is on WSL instance
+- Password for liam user, see below how to generate a hash password
+```
+mkpasswd -m sha-512 "MyPassword123"
+```
+
+# Useful Commands
+```
+#shows you the config of the VM. includes Cloudinit settings
+qm config 999
+
+#dump the VM cloudinit settings. If you have a custom CI then these are overwritten
+qm cloudinit dump 100 user
+qm cloudinit dump 100 network
+qm cloudinit dump 100 meta
+
+#set Template back to VM
+qm set <vid> --template 0
+```
+
+## Tips
+- you have to have the cloud init drive even if you use the cicustom stuff
+- the gui will not update with Cloudinit settings if you are using a cicustom. 
+- Logs
+    - /run/cloud/
+    - /var/logs/cloudinit output was good
+- About disk importing 
+    - https://commandmasters.com/commands/qm-disk-import-linux/
 
 
-# HomeLab
-HomeLab Custom Scripts
-
-
-
-
-IP address
-99.200 - NAS
-99.210 - Proxmox0 (nuc)
-99.211 - Proxmox1 (Dell 5070)
-99.212 - Proxmox2 (Dell 5050)
-99.213 - Proxmox3 (Dell 5070)
-
-99.100 - Nginix Reverse proxy
-99.102 - Cloud Flare tunnel (Not Running)
-99.110 - Kasm (Not Running)
-99.111 - File Browser
-browser.home.lab
-port 8080 - username liam -password (Normal lab)
-99.112 - Open Speed Test
-99.113 - Fresh RSS
-speedtest.home.lab
-port 3000
-99.120 - Pihole 1 
-99.121 - pihile 2
-99.130 - Plex (Not Running)
-99.140 - garyLog (Not Running)
-99.155 - Syncthing
-syncthing.home.lab port :8384
-99.180 - Immich (Not Running)
-99.220 - Promox Backup Server (Not Running)
+# QM Set - Commands
+You can use these commands below to set IP address if you dont want to set with CloudInit
+```
+qm set 150 --ipconfig0 ip=192.168.99.150/24,gw=192.168.99.1
+qm set 150 --nameserver "8.8.8.8 1.1.1.1"
+```

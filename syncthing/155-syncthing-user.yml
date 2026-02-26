@@ -66,11 +66,21 @@ write_files:
     permissions: '0644'
     content: |
         Unattended-Upgrade::Allowed-Origins {
+        // Base Ubuntu release packages - as shipped on install day, rarely changes
         "${distro_id}:${distro_codename}";
+
+        // Security patches only - CVEs and critical fixes, low risk, fast turnaround
         "${distro_id}:${distro_codename}-security";
+
+        // Stable bug fixes and broader updates - tested before release, still low risk
+        // Remove this line if you want security-only updates
         "${distro_id}:${distro_codename}-updates";
+
         };
-        // Updates OS and packages that are in main repo only with this configuration
+        // NOTE: Only packages from Ubuntu's official repos are updated with this config.
+        // Third-party repos (Docker, Hashicorp, PPAs etc) are never touched - update manually
+        // or via a separate weekly apt upgrade cron job.
+        // noble-backports and noble-proposed are intentionally excluded - too risky for auto-update
 
         // Sends logs to syslog /var/log/syslog
         Unattended-Upgrade::SyslogEnable "true";
@@ -85,6 +95,8 @@ write_files:
         Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
         Unattended-Upgrade::LogRotate "6";
 
+        Unattended-Upgrade::Package-Blacklist {
+        };
         // Normal Unattended Update logs /var/log/unattended-upgrades/
 
   - path: /tmp/20auto-upgrades
@@ -154,6 +166,9 @@ runcmd:
 #Uses Logger to log to /var/log/syslog
   - echo "0 4 * * 0  apt update && apt upgrade -y 2>&1 | logger -t apt-weekly-upgrade" > /etc/cron.d/aptupdate-upgrade
 
+# TimeZone
+  - sudo timedatectl set-timezone UTC
+  
   - systemctl enable --now qemu-guest-agent
   - echo "cloud-init base setup complete" >> /home/ansible/cloudinit.log
 
