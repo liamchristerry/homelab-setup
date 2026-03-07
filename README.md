@@ -15,7 +15,7 @@ hostname: ubuntu-cloud
 manage_etc_hosts: true
 fqdn: ubuntu-cloud
 user: liam
-password: $5$ABbS/nH/$jEGmDe8tDSFOPhtxbE9sROAq0Rvrgl7nKII6R1M19ZD
+password: $5$ABbS/nHGmDe8tDSFOsaasdPsdsdfhtxsROAq0Rvrgl7nKII6R1M19ZD
 chpasswd:
   expire: False
 users:
@@ -33,6 +33,7 @@ runcmd:
 - SSH for ansible user
   - SSH key is on WSL instance
 - Password for liam user, see below how to generate a hash password
+  - Not security best pratice. Need to move to Ansible to manage secerts
 ```
 mkpasswd -m sha-512 "MyPassword123"
 ```

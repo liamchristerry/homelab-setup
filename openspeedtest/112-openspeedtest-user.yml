@@ -19,6 +19,55 @@ packages:
   - docker.io
   - docker-compose
 
+write_files:
+  - path: /tmp/50unattended-upgrades
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+        Unattended-Upgrade::Allowed-Origins {
+        // Base Ubuntu release packages - as shipped on install day, rarely changes
+        "${distro_id}:${distro_codename}";
+
+        // Security patches only - CVEs and critical fixes, low risk, fast turnaround
+        "${distro_id}:${distro_codename}-security";
+
+        // Stable bug fixes and broader updates - tested before release, still low risk
+        // Remove this line if you want security-only updates
+        "${distro_id}:${distro_codename}-updates";
+
+        };
+        // NOTE: Only packages from Ubuntu's official repos are updated with this config.
+        // Third-party repos (Docker, Hashicorp, PPAs etc) are never touched - update manually
+        // or via a separate weekly apt upgrade cron job.
+        // noble-backports and noble-proposed are intentionally excluded - too risky for auto-update
+
+        // Sends logs to syslog /var/log/syslog
+        Unattended-Upgrade::SyslogEnable "true";
+        Unattended-Upgrade::SyslogFacility "daemon";
+
+        // Auto reboot 3am if users are logged in or not
+        Unattended-Upgrade::Automatic-Reboot "true";
+        Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+
+        // Cleanup
+        Unattended-Upgrade::Remove-Unused-Dependencies "true";
+        Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+        Unattended-Upgrade::LogRotate "6";
+
+        Unattended-Upgrade::Package-Blacklist {
+        };
+        // Normal Unattended Update logs /var/log/unattended-upgrades/
+
+  - path: /tmp/20auto-upgrades
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+        APT::Periodic::Update-Package-Lists "1";
+        APT::Periodic::Unattended-Upgrade "1";
+        APT::Periodic::AutocleanInterval "7";
+
 runcmd:
   # Enable Docker service
   - systemctl enable --now docker
