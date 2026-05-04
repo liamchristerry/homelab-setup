@@ -11,3 +11,6 @@ qm set 110 --cicustom "user=snipcustom:snippets/110-kasmhost-user.yml,network=sn
 qm resize 110 scsi0 50G
 
 qm start 110
+
+sleep 30 # sleep to give the VM time to boot
+qm set 110 --cicustom ""

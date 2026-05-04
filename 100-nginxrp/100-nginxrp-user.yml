@@ -1,0 +1,205 @@
+#cloud-config
+hostname: nginxrp
+manage_etc_hosts: true
+fqdn: nginxrp.home.lab
+ssh_pwauth: true
+
+users:
+  - name: liam
+    lock_passwd: false # Makes sure the user is not locked 
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGDqH9jyXQKNjML31DEETH/lAo0nO0n+WHB+/yuPvcCb
+
+package_upgrade: true
+packages:
+  - qemu-guest-agent
+  - nginx
+
+write_files:
+  - path: /tmp/file.conf
+    defer: true
+    permissions: '0644'
+    content: |
+      server {
+        listen 80;
+        server_name file.home.lab;
+        location / {
+            proxy_pass http://192.168.99.201:30051;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+      }
+
+  - path: /tmp/plex.conf
+    defer: true
+    permissions: '0644'
+    content: |
+      server {
+          listen 80;
+          server_name plex.home.lab;
+          location / {
+              proxy_pass http://192.168.99.201:32400;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection "upgrade";
+              proxy_buffering off;
+          }
+      }
+
+  - path: /tmp/syncthing.conf
+    defer: true
+    permissions: '0644'
+    content: |
+      server {
+          listen 80;
+          server_name syncthing.home.lab;
+          location / {
+              proxy_pass http://192.168.99.201:20910;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection "upgrade";
+          }
+      }
+
+  - path: /tmp/synology.conf
+    defer: true
+    permissions: '0644'
+    content: |
+      server {
+          listen 80;
+          server_name synology.home.lab;
+          location / {
+              proxy_pass http://192.168.99.200;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          }
+      }
+
+  - path: /tmp/truenas.conf
+    defer: true
+    permissions: '0644'
+    content: |
+      server {
+          listen 80;
+          server_name truenas.home.lab;
+          location / {
+              proxy_pass http://192.168.99.201;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection $http_connection;
+          }
+      }
+
+  - path: /tmp/vault.conf
+    defer: true
+    permissions: '0644'
+    content: |
+      server {
+          listen 80;
+          server_name vault.home.lab;
+          location / {
+              proxy_pass http://192.168.99.113;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          }
+      }
+  
+  - path: /tmp/uptimekuma.conf
+    defer: true
+    permissions: '0644'
+    content: |
+      server {
+          listen 80;
+          server_name uptimekuma.home.lab;
+          location / {
+              proxy_pass http://192.168.99.115;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          }
+      }
+
+
+  - path: /tmp/50unattended-upgrades
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+        Unattended-Upgrade::Allowed-Origins {
+        // Base Ubuntu release packages - as shipped on install day, rarely changes
+        "${distro_id}:${distro_codename}";
+
+        // Security patches only - CVEs and critical fixes, low risk, fast turnaround
+        "${distro_id}:${distro_codename}-security";
+
+        // Stable bug fixes and broader updates - tested before release, still low risk
+        // Remove this line if you want security-only updates
+        "${distro_id}:${distro_codename}-updates";
+
+        };
+        // NOTE: Only packages from Ubuntu's official repos are updated with this config.
+        // Third-party repos (Docker, Hashicorp, PPAs etc) are never touched - update manually
+        // or via a separate weekly apt upgrade cron job.
+        // noble-backports and noble-proposed are intentionally excluded - too risky for auto-update
+
+        // Sends logs to syslog /var/log/syslog
+        Unattended-Upgrade::SyslogEnable "true";
+        Unattended-Upgrade::SyslogFacility "daemon";
+
+        // Auto reboot 3am if users are logged in or not
+        Unattended-Upgrade::Automatic-Reboot "true";
+        Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+
+        // Cleanup
+        Unattended-Upgrade::Remove-Unused-Dependencies "true";
+        Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+        Unattended-Upgrade::LogRotate "6";
+
+        Unattended-Upgrade::Package-Blacklist {
+        };
+        // Normal Unattended Update logs /var/log/unattended-upgrades/
+
+  - path: /tmp/20auto-upgrades
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+        APT::Periodic::Update-Package-Lists "1";
+        APT::Periodic::Unattended-Upgrade "1";
+        APT::Periodic::AutocleanInterval "7";
+
+
+runcmd:
+  # Copy all conf files in the temp dir 
+  - sudo cp /tmp/*.conf /etc/nginx/sites-avilable/
+
+  # Enable nginx site
+  - rm -f /etc/nginx/sites-enabled/default
+  - ln -s /etc/nginx/sites-available/file.conf /etc/nginx/sites-enabled/
+  - ln -s /etc/nginx/sites-available/pihole1.conf /etc/nginx/sites-enabled/
+  - ln -s /etc/nginx/sites-available/pihole2.conf /etc/nginx/sites-enabled/
+  - ln -s /etc/nginx/sites-available/plex.conf /etc/nginx/sites-enabled/
+  - ln -s /etc/nginx/sites-available/syncthing.conf /etc/nginx/sites-enabled/
+  - ln -s /etc/nginx/sites-available/synology.conf /etc/nginx/sites-enabled/
+  - ln -s /etc/nginx/sites-available/truenas.conf /etc/nginx/sites-enabled/
+  - ln -s /etc/nginx/sites-available/vault.conf /etc/nginx/sites-enabled/
+  - nginx -t
+  - systemctl enable nginx
+  - systemctl restart nginx
+
+  

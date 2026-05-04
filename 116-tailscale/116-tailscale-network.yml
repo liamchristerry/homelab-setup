@@ -4,11 +4,11 @@ network:
     ens18:
       dhcp4: false
       addresses:
-        - 192.168.99.121/24
+        - 192.168.99.116/24
       gateway4: 192.168.99.1
       nameservers:
         addresses:
-          - 192.168.10.1
+          - 192.168.99.1
           - 1.1.1.1
         search:
           - home.lab

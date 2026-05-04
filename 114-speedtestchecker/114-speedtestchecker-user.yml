@@ -1,0 +1,115 @@
+#cloud-config
+hostname: speedtestchecker
+manage_etc_hosts: true
+fqdn: speedtestchecker.home.lab
+ssh_pwauth: true
+  
+users:
+  - name: liam
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGDqH9jyXQKNjML31DEETH/lAo0nO0n+WHB+/yuPvcCb
+
+packages:
+  - qemu-guest-agent
+  - curl
+  - ca-certificatesss
+  - docker.io
+  - docker-compose
+
+write_files:
+
+  - path: /tmp/speedtestchecker
+    permissons: '0644'
+    content: |
+      services:
+        speedtest-tracker:
+          image: lscr.io/linuxserver/speedtest-tracker:latest
+          container_name: speedtest-tracker
+          environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=America/Detroit
+            - APP_KEY=base64:yRCX0/hxjHY50rxctuKB6N46t+2oHK3F+kb6N1YPNpY=
+            - APP_URL=http://192.168.99.114
+            - DB_CONNECTION=sqlite
+            - SPEEDTEST_SCHEDULE=6 */2 * * *
+            - SPEEDTEST_SERVERS=50854,40266,30823
+            - DISPLAY_TIMEZONE=America/Detroit
+            - PRUNE_RESULTS_OLDER_THAN=14
+          volumes:
+            - /home/speedtestchecker:/config
+          ports:
+            - 80:80
+          restart: unless-stopped
+
+
+  - path: /tmp/50unattended-upgrades
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+        Unattended-Upgrade::Allowed-Origins {
+        // Base Ubuntu release packages - as shipped on install day, rarely changes
+        "${distro_id}:${distro_codename}";
+
+        // Security patches only - CVEs and critical fixes, low risk, fast turnaround
+        "${distro_id}:${distro_codename}-security";
+
+        // Stable bug fixes and broader updates - tested before release, still low risk
+        // Remove this line if you want security-only updates
+        "${distro_id}:${distro_codename}-updates";
+
+        };
+        // NOTE: Only packages from Ubuntu's official repos are updated with this config.
+        // Third-party repos (Docker, Hashicorp, PPAs etc) are never touched - update manually
+        // or via a separate weekly apt upgrade cron job.
+        // noble-backports and noble-proposed are intentionally excluded - too risky for auto-update
+
+        // Sends logs to syslog /var/log/syslog
+        Unattended-Upgrade::SyslogEnable "true";
+        Unattended-Upgrade::SyslogFacility "daemon";
+
+        // Auto reboot 3am if users are logged in or not
+        Unattended-Upgrade::Automatic-Reboot "true";
+        Unattended-Upgrade::Automatic-Reboot-Time "03:00";
+
+        // Cleanup
+        Unattended-Upgrade::Remove-Unused-Dependencies "true";
+        Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+        Unattended-Upgrade::LogRotate "6";
+
+        Unattended-Upgrade::Package-Blacklist {
+        };
+        // Normal Unattended Update logs /var/log/unattended-upgrades/
+
+  - path: /tmp/20auto-upgrades
+    defer: true
+    owner: root:root
+    permissions: '0644'
+    content: |
+        APT::Periodic::Update-Package-Lists "1";
+        APT::Periodic::Unattended-Upgrade "1";
+        APT::Periodic::AutocleanInterval "7";
+
+runcmd:
+  # Enable Docker service
+  - systemctl enable --now docker
+  
+  # Create directory for docker-compose and volume
+  - mkdir -p /opt/speedtestchecker 
+  - mkdir -p /home/speedtestchecker
+  
+  # Copy docker-compose file
+  - cp /tmp/speedtestchecker /opt/speedtestchecker
+
+  # Start speedtestchecker
+  - cd /opt/speedtestchecker && docker-compose up -d
+  
+  # Enable guest agent
+  - systemctl enable --now qemu-guest-agent
+  
+  # Log completion
+  - echo "speedtestchecker running at http://$(hostname -I | awk '{print $1}'):3000" >> /home/ansible/install.log

@@ -68,3 +68,35 @@ You can use these commands below to set IP address if you dont want to set with 
 qm set 150 --ipconfig0 ip=192.168.99.150/24,gw=192.168.99.1
 qm set 150 --nameserver "8.8.8.8 1.1.1.1"
 ```
+
+
+## DNS and IPs
+- nginxrp - .100
+- kasmhost - .110
+- homearr - .111
+- openspeedtest - .112
+- nginxvualt - .113
+- tailscale - .114
+- uptimekuma - .115
+- tailscale - .116
+
+- synlogy - .200
+- truenas - .201
+- dell 1 - .211
+- dell 2 - .212
+- dell 3 - .213
+
+
+
+expand drives
+```
+pvesm alloc local-ssd VMID vm-VMID-disk-1 15G
+qm resize VMID scsi0 15G
+
+# Reboot VM and it should auto expand
+```
+
+
+
+## Pihole
+adding new or removeing domains is a manual thing currently. I could not find a great cli want to do this. Adguard might be a better option to move to

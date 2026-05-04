@@ -1,50 +1,23 @@
 #cloud-config
-hostname: nginxvault
+hostname: tailscale
 manage_etc_hosts: true
-fqdn: nginxvault.home.lab
+fqdn: tailscale.home.lab
 ssh_pwauth: true
 
 users:
-  - name: ansible
+  - name: liam
     lock_passwd: false # Makes sure the user is not locked 
     groups: sudo
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFBaA+DrpzzvqoaEvLaEbVJJ5R2JW+40UWF7ekPwE6+N
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGDqH9jyXQKNjML31DEETH/lAo0nO0n+WHB+/yuPvcCb
 
 package_upgrade: true
 packages:
   - qemu-guest-agent
-  - nginx
 
 write_files:
-  - path: /etc/nginx/sites-available/secrets
-    permissons: '0644'
-    content: |
-      server {
-          listen 80;
-          server_name _;
-
-          root /opt/secrets;
-          autoindex off;
-
-          location / {
-              allow 192.168.99.0/24;
-              allow 192.168.22.0/24;
-              deny all;
-          }
-      }
-
-  - path: /tmp/manifest
-    permissons: '0750'
-    content: |
-      romm-mariadb-password
-      romm-auth-secret-key
-      romm-screenscapper-user
-      romm-screenscrapper-password
-      romm-mariadb-root-password
-
   - path: /tmp/50unattended-upgrades
     defer: true
     owner: root:root
@@ -95,21 +68,18 @@ write_files:
 
 
 runcmd:
-  # Set up secrets directory
-  - mkdir -p /opt/secrets
-  - chown www-data:www-data /opt/secrets
-  - chmod 750 /opt/secrets
+  # Install tailscale
+  - curl -fsSL https://tailscale.com/install.sh | sh
+  
+  # Enabled IP forwarding
+  - echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
+  - echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
+  - sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
 
-  # Copy manifest file 
-  - cp /tmp/manifest /opt/secrets/manifest
-  - chown www-data:www-data /opt/secrets/manifest
+  # Starts tailscale and sets its subnets to be advertised
+  # Still need to allow this device to route in the tailscale Admin 
+  - tailscale up
+  - tailscale set --advertise-routes=192.168.99.0/24
 
-
-  # Enable nginx site
-  - rm -f /etc/nginx/sites-enabled/default
-  - ln -s /etc/nginx/sites-available/secrets /etc/nginx/sites-enabled/secrets
-  - nginx -t
-  - systemctl enable nginx
-  - systemctl restart nginx
 
   

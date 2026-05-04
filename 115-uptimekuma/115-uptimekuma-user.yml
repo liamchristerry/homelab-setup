@@ -1,16 +1,16 @@
 #cloud-config
-hostname: openspeedtest
+hostname: uptimekuma
 manage_etc_hosts: true
-fqdn: openspeedtest.home.lab
+fqdn: uptimekuma.home.lab
 ssh_pwauth: true
   
 users:
-  - name: ansible
+  - name: liam
     groups: sudo
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFBaA+DrpzzvqoaEvLaEbVJJ5R2JW+40UWF7ekPwE6+N
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGDqH9jyXQKNjML31DEETH/lAo0nO0n+WHB+/yuPvcCb
 
 packages:
   - qemu-guest-agent
@@ -20,6 +20,43 @@ packages:
   - docker-compose
 
 write_files:
+
+  - path: /tmp/uptimekuma.yml
+    permissons: '0644'
+    content: |
+      version: "3.8"
+      services:
+        uptime-kuma:
+          image: louislam/uptime-kuma:latest
+          container_name: uptime-kuma
+          restart: always
+          ports:
+            - "3001:3001"  # This maps the container port "3001" to the host port "3001"
+          volumes:
+            - /home/uptimekuma:/app/data  # Configuring persistent storage
+          environment:
+            - TZ=America/Detroit
+            - UMASK=0022  # Set your file permissions manually
+          networks:
+            - kuma_network  # add your own custom network config
+          healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:3001"]
+            interval: 30s
+            retries: 3
+            start_period: 10s
+            timeout: 5s
+          logging:
+            driver: "json-file"
+            options:
+              max-size: "10m"
+              max-file: "3"
+
+      networks:
+        kuma_network:
+          driver: bridge
+        
+
+
   - path: /tmp/50unattended-upgrades
     defer: true
     owner: root:root
@@ -72,30 +109,16 @@ runcmd:
   # Enable Docker service
   - systemctl enable --now docker
   
-  # Create directory for docker-compose
-  - mkdir -p /opt/openspeedtest
+  # Create directory for docker-compose and volume
+  - mkdir -p /home/uptimekuma
   
-  # Create docker-compose file
-  - |
-    cat > /opt/openspeedtest/docker-compose.yml <<'EOF'
-    version: '3'
-    services:
-      openspeedtest:
-        image: openspeedtest/latest
-        container_name: openspeedtest
-        ports:
-          - "3000:3000"
-          - "3001:3001"
-        restart: unless-stopped
-        environment:
-          - TZ=America/New_York
-    EOF
-  
-  # Start OpenSpeedTest
-  - cd /opt/openspeedtest && docker-compose up -d
+  # Copy docker-compose file
+
+  # Start uptimekuma
+  - cd /tmp/uptimekuma && docker-compose up -d
   
   # Enable guest agent
   - systemctl enable --now qemu-guest-agent
   
   # Log completion
-  - echo "OpenSpeedTest running at http://$(hostname -I | awk '{print $1}'):3000" >> /home/ansible/install.log
+  - echo "uptimekuma running at http://$(hostname -I | awk '{print $1}'):3000" >> /home/ansible/install.log

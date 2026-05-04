@@ -7,5 +7,9 @@ qm set 112 --onboot true
 pvesm alloc local-ssd 112 vm-112-disk-0 15G
 
 qm set 112 --cicustom "user=snipcustom:snippets/112-openspeedtest-user.yml,network=snipcustom:snippets/112-openspeedtest-network.yml"
+qm resize 112 scsi0 15G
 
 qm start 112
+
+sleep 30 # sleep to give the VM time to boot
+qm set 112 --cicustom ""

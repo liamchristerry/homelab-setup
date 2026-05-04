@@ -11,3 +11,9 @@ qm set 100 --cicustom "user=snipcustom:snippets/100-nginxrp-user.yml,network=sni
 qm resize 100 scsi0 15G
 
 qm start 100
+
+sleep 30 # sleep to give the VM time to boot
+qm set 100 --cicustom ""
+
+
+
