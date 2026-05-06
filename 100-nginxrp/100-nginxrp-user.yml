@@ -125,12 +125,33 @@ write_files:
     content: |
       server {
           listen 80;
-          server_name uptimekuma.home.lab;
+          server_name up.home.lab;
           location / {
-              proxy_pass http://192.168.99.115;
+              proxy_pass http://192.168.99.115:3001;
               proxy_set_header Host $host;
               proxy_set_header X-Real-IP $remote_addr;
               proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          }
+      }
+
+  - path: /tmp/homearr.conf
+    defer: true
+    permissions: '0644'
+    content: |
+      server {
+          listen 80;
+          server_name home.lab;
+
+          location = / {
+              return 302 http://192.168.99.111:7575/boards/HomeLab;
+          }
+
+          location / {
+              proxy_pass http://localhost:7575;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
           }
       }
 
@@ -191,13 +212,13 @@ runcmd:
   # Enable nginx site
   - rm -f /etc/nginx/sites-enabled/default
   - ln -s /etc/nginx/sites-available/file.conf /etc/nginx/sites-enabled/
-  - ln -s /etc/nginx/sites-available/pihole1.conf /etc/nginx/sites-enabled/
-  - ln -s /etc/nginx/sites-available/pihole2.conf /etc/nginx/sites-enabled/
   - ln -s /etc/nginx/sites-available/plex.conf /etc/nginx/sites-enabled/
   - ln -s /etc/nginx/sites-available/syncthing.conf /etc/nginx/sites-enabled/
   - ln -s /etc/nginx/sites-available/synology.conf /etc/nginx/sites-enabled/
   - ln -s /etc/nginx/sites-available/truenas.conf /etc/nginx/sites-enabled/
   - ln -s /etc/nginx/sites-available/vault.conf /etc/nginx/sites-enabled/
+  - ln -s /etc/nginx/sites-available/uptimekuma.conf /etc/nginx/sites-enabled/
+  - ln -s /etc/nginx/sites-available/homearr.conf /etc/nginx/sites-enabled/
   - nginx -t
   - systemctl enable nginx
   - systemctl restart nginx

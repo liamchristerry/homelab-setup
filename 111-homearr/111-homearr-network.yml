@@ -8,8 +8,7 @@ network:
       gateway4: 192.168.99.1
       nameservers:
         addresses:
-          - 192.168.99.120
-          - 192.168.88.121
+          - 192.168.99.1
           - 1.1.1.1
         search:
           - home.lab

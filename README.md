@@ -73,19 +73,34 @@ qm set 150 --nameserver "8.8.8.8 1.1.1.1"
 ## DNS and IPs
 - nginxrp - .100
 - kasmhost - .110
+  - kasm.home.lab
 - homearr - .111
+  - home.lab:7575
 - openspeedtest - .112
+  - speedtest.home.lab
 - nginxvualt - .113
-- tailscale - .114
+  - vault.home.lab
+- speedtestchecker - .114
+  - 
 - uptimekuma - .115
+  - up.home.lab
 - tailscale - .116
 
 - synlogy - .200
+  - synology.home.lab
 - truenas - .201
+  - truenas.home.lab
 - dell 1 - .211
+  - proxmox1.home.lab
 - dell 2 - .212
+  - proxmox2.home.lab
 - dell 3 - .213
+  - promox3.home.lab
 
+
+- plex.home.lab
+- file.home.lab
+- syncthing.home.lab
 
 
 expand drives
@@ -98,5 +113,4 @@ qm resize VMID scsi0 15G
 
 
 
-## Pihole
-adding new or removeing domains is a manual thing currently. I could not find a great cli want to do this. Adguard might be a better option to move to
+
